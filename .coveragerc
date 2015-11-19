@@ -1,0 +1,2 @@
+[run]
+omit = reddit_service_activity/*_thrift/*.py
