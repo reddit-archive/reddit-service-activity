@@ -22,7 +22,7 @@ import time
 
 
 _SLICE_KEY_FORMAT = "{context_id}/{slice:d}"
-_SLICE_LENGTH = 60  # seconds
+_SLICE_LENGTH = 15  # seconds
 
 
 def _current_slice():

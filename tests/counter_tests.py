@@ -17,9 +17,9 @@ class ActivityCounterTests(unittest.TestCase):
 
         self.counter.record_activity(mock_redis, "context", "visitor")
 
-        # 20 is the current time slice; 1200 / 60 = time.time() / SLICE_LENGTH
+        # 80 is the current time slice; 1200 / 15 = time.time() / SLICE_LENGTH
         mock_redis.execute_command.assert_called_with(
-            "PFADD", "context/20", "visitor")
+            "PFADD", "context/80", "visitor")
 
     @mock.patch("time.time")
     def test_count_activity(self, mock_time):
@@ -29,13 +29,25 @@ class ActivityCounterTests(unittest.TestCase):
 
         result = self.counter.count_activity(mock_redis, "context")
 
-        # the counter should merge the most recent 15 slices, starting at
+        # the counter should merge the most recent 15*4 slices, starting at
         # the current slice #20 (see above for why it's #20).
         mock_redis.execute_command.assert_called_with("PFCOUNT",
-            "context/20", "context/19", "context/18",
-            "context/17", "context/16", "context/15",
-            "context/14", "context/13", "context/12",
-            "context/11", "context/10", "context/9",
-            "context/8", "context/7", "context/6",
+            "context/80", "context/79", "context/78", "context/77",
+            "context/76", "context/75", "context/74", "context/73",
+            "context/72", "context/71", "context/70", "context/69",
+            "context/68", "context/67", "context/66", "context/65",
+            "context/64", "context/63", "context/62", "context/61",
+
+            "context/60", "context/59", "context/58", "context/57",
+            "context/56", "context/55", "context/54", "context/53",
+            "context/52", "context/51", "context/50", "context/49",
+            "context/48", "context/47", "context/46", "context/45",
+            "context/44", "context/43", "context/42", "context/41",
+
+            "context/40", "context/39", "context/38", "context/37",
+            "context/36", "context/35", "context/34", "context/33",
+            "context/32", "context/31", "context/30", "context/29",
+            "context/28", "context/27", "context/26", "context/25",
+            "context/24", "context/23", "context/22", "context/21",
         )
         self.assertEqual(result, 28)
