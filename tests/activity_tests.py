@@ -49,8 +49,7 @@ class ActivityServiceTests(unittest.TestCase):
 
     def test_health_check(self):
         self.handler.is_healthy(self.mock_context)
-
-        self.mock_context.redis.ping.assert_called()
+        self.mock_context.redis.ping.assert_called_with()
 
     def test_record_activity(self):
         self.handler.record_activity(self.mock_context, "context", "visitor")
