@@ -72,6 +72,19 @@ class Handler(ActivityService.ContextIface):
             context.redis.setex(cache_key, _CACHE_TIME, info.to_json())
             return info
 
+    def count_activity_multi(self, context, context_ids):
+        for context_id in context_ids:
+            if not _ID_RE.match(context_id):
+                raise ActivityService.InvalidContextIDException
+
+        by_key = {"{context}/cached".format(context=context_id): context_id
+            for context_id in context_ids}
+        cached_results = context.redis.mget(by_key.keys())
+
+        missing = []
+        for context_id in context_ids:
+
+
 
 def make_processor(app_config):  # pragma: nocover
     cfg = config.parse_config(app_config, {
