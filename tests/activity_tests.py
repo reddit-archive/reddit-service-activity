@@ -3,6 +3,8 @@ import unittest
 import mock
 import redis
 
+import baseplate.context.redis
+
 import reddit_service_activity as activity
 from reddit_service_activity.counter import ActivityCounter
 from reddit_service_activity.activity_thrift import ActivityService
@@ -70,7 +72,7 @@ class ActivityServiceTests(unittest.TestCase):
 
     @mock.patch("reddit_service_activity.ActivityInfo", autospec=True)
     def test_count_activity_cache_hit(self, MockActivityInfo):
-        self.mock_context.redis.get.return_value = "serialized"
+        self.mock_context.redis.mget.return_value = ["serialized"]
         deserialized = MockActivityInfo.from_json.return_value
         deserialized.count = 33
         deserialized.is_fuzzed = True
@@ -87,13 +89,17 @@ class ActivityServiceTests(unittest.TestCase):
         fuzzed.count = 33
         fuzzed.is_fuzzed = True
         fuzzed.to_json.return_value = "DATA"
-        self.mock_context.redis.get.return_value = None
+        self.mock_context.redis.mget.return_value = [None]
+        pipeline = self.mock_context.redis.pipeline.return_value = mock.MagicMock(
+            spec=baseplate.context.redis.MonitoredRedisPipeline)
+        pipe = pipeline.__enter__.return_value
 
+        pipe.execute.return_value = [33]
         result = self.handler.count_activity(self.mock_context, "context")
 
-        self.mock_context.redis.get.assert_called_with("context/cached")
+        self.mock_context.redis.mget.assert_called_with(["context/cached"])
         self.assertEqual(result.count, 33)
         self.assertTrue(result.is_fuzzed)
 
         # 60 is how long we cache for.
-        self.mock_context.redis.setex.assert_called_with("context/cached", 60, "DATA")
+        pipe.setex.assert_called_with("context/cached", 60, "DATA")
