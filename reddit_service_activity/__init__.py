@@ -59,31 +59,39 @@ class Handler(ActivityService.ContextIface):
         self.counter.record_activity(context.redis, context_id, visitor_id)
 
     def count_activity(self, context, context_id):
-        if not _ID_RE.match(context_id):
-            raise ActivityService.InvalidContextIDException
-
-        cache_key = "{context}/cached".format(context=context_id)
-        cached_result = context.redis.get(cache_key)
-        if cached_result:
-            return ActivityInfo.from_json(cached_result.decode())
-        else:
-            count = self.counter.count_activity(context.redis, context_id)
-            info = ActivityInfo.from_count(self.fuzz_threshold, count)
-            context.redis.setex(cache_key, _CACHE_TIME, info.to_json())
-            return info
+        results = self.count_activity_multi(context, [context_id])
+        return results[context_id]
 
     def count_activity_multi(self, context, context_ids):
-        for context_id in context_ids:
-            if not _ID_RE.match(context_id):
-                raise ActivityService.InvalidContextIDException
+        if not all(_ID_RE.match(context_id) for context_id in context_ids):
+            raise ActivityService.InvalidContextIDException
 
-        by_key = {"{context}/cached".format(context=context_id): context_id
-            for context_id in context_ids}
-        cached_results = context.redis.mget(by_key.keys())
+        activity = {}
 
-        missing = []
-        for context_id in context_ids:
+        cache_keys = [context_id + "/cached" for context_id in context_ids]
+        cached_info = context.redis.mget(cache_keys)
+        for context_id, cached_value in zip(context_ids, cached_info):
+            if cached_value is None:
+                continue
+            activity[context_id] = ActivityInfo.from_json(cached_value.decode())
 
+        missing_ids = [id_ for id_ in context_ids if id_ not in activity]
+        with context.redis.pipeline("count", transaction=False) as pipe:
+            for context_id in missing_ids:
+                self.counter.count_activity(pipe, context_id)
+            counts = pipe.execute()
+
+        with context.redis.pipeline("cache", transaction=False) as pipe:
+            for context_id, count in zip(missing_ids, counts):
+                if count is None:
+                    continue
+
+                info = ActivityInfo.from_count(self.fuzz_threshold, count)
+                pipe.setex(context_id + "/cached", _CACHE_TIME, info.to_json())
+                activity[context_id] = info
+            pipe.execute()
+
+        return activity
 
 
 def make_processor(app_config):  # pragma: nocover

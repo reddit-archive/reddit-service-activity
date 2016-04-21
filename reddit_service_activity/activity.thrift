@@ -59,5 +59,6 @@ service ActivityService extends baseplate.BaseplateService {
     This is the same as `count_activity` but allows for querying in batch.
 
     */
-    map<ContextId, ActivityInfo> count_activity_multi(1: list<ContextID> context_ids)
+    map<ContextID, ActivityInfo> count_activity_multi(1: list<ContextID> context_ids)
         throws (1: InvalidContextIDException invalid_context_id),
+}
