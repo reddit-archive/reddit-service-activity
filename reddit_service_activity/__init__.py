@@ -82,11 +82,16 @@ def make_processor(app_config):  # pragma: nocover
 
         "redis": {
             "url": config.String,
+            "max_connections": config.Optional(config.Integer, default=100),
         },
     })
 
     metrics_client = make_metrics_client(app_config)
-    redis_pool = redis.ConnectionPool.from_url(cfg.redis.url)
+    redis_pool = redis.BlockingConnectionPool.from_url(
+        cfg.redis.url,
+        max_connections=cfg.redis.max_connections,
+        timeout=0.1,
+    )
 
     baseplate = Baseplate()
     baseplate.configure_logging()
