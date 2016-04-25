@@ -89,7 +89,7 @@ def make_processor(app_config):  # pragma: nocover
     metrics_client = make_metrics_client(app_config)
     redis_pool = redis.BlockingConnectionPool.from_url(
         cfg.redis.url,
-        max_connections=100,
+        max_connections=cfg.redis.max_connections,
         timeout=0.1,
     )
 
