@@ -39,6 +39,11 @@ class ActivityInfoTests(unittest.TestCase):
         self.assertTrue(deserialized.is_fuzzed)
 
 
+class MockActivityInfo(activity.ActivityInfo):
+    def to_json(self):
+        return (self.count, self.is_fuzzed)
+
+
 class ActivityServiceTests(unittest.TestCase):
     def setUp(self):
         self.mock_counter = mock.Mock(spec=ActivityCounter)
@@ -47,7 +52,12 @@ class ActivityServiceTests(unittest.TestCase):
             counter=self.mock_counter,
         )
         self.mock_context = mock.Mock()
-        self.mock_context.redis = mock.Mock(spec=redis.StrictRedis)
+
+        redis_ = mock.Mock(spec=redis.StrictRedis)
+        pipeline = redis_.pipeline.return_value = mock.MagicMock(
+            spec=baseplate.context.redis.MonitoredRedisPipeline)
+        self.mock_context.redis = redis_
+        self.mock_pipe = pipeline.__enter__.return_value
 
     def test_health_check(self):
         self.handler.is_healthy(self.mock_context)
@@ -83,23 +93,28 @@ class ActivityServiceTests(unittest.TestCase):
         self.assertEqual(result.count, 33)
         self.assertTrue(result.is_fuzzed)
 
-    @mock.patch("reddit_service_activity.ActivityInfo", autospec=True)
-    def test_count_activity_cache_miss(self, MockActivityInfo):
-        fuzzed = MockActivityInfo.from_count.return_value
-        fuzzed.count = 33
-        fuzzed.is_fuzzed = True
-        fuzzed.to_json.return_value = "DATA"
+    @mock.patch("reddit_service_activity.ActivityInfo", new=MockActivityInfo)
+    def test_count_activity_cache_miss(self):
         self.mock_context.redis.mget.return_value = [None]
-        pipeline = self.mock_context.redis.pipeline.return_value = mock.MagicMock(
-            spec=baseplate.context.redis.MonitoredRedisPipeline)
-        pipe = pipeline.__enter__.return_value
 
-        pipe.execute.return_value = [33]
+        self.mock_pipe.execute.return_value = [125]
         result = self.handler.count_activity(self.mock_context, "context")
 
         self.mock_context.redis.mget.assert_called_with(["context/cached"])
-        self.assertEqual(result.count, 33)
-        self.assertTrue(result.is_fuzzed)
+        self.assertEqual(result.count, 125)
+        self.assertFalse(result.is_fuzzed)
 
         # 60 is how long we cache for.
-        pipe.setex.assert_called_with("context/cached", 60, "DATA")
+        self.mock_pipe.setex.assert_called_with("context/cached", 60, (125, False))
+
+    @mock.patch("reddit_service_activity.ActivityInfo", new=MockActivityInfo)
+    def test_count_activity_multi_cache_miss(self):
+        self.mock_context.redis.mget.return_value = [None, None]
+        self.mock_pipe.execute.return_value = [500, 600]
+
+        self.handler.count_activity_multi(self.mock_context, ["one", "two"])
+
+        self.mock_pipe.setex.assert_has_calls([
+            mock.call("one/cached", 60, (500, False)),
+            mock.call("two/cached", 60, (600, False)),
+        ], any_order=True)
