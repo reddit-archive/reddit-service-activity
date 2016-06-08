@@ -8,10 +8,11 @@ import redis
 
 from baseplate import Baseplate, make_metrics_client, config
 from baseplate.context.redis import RedisContextFactory
-from baseplate.integration.thrift import BaseplateProcessorEventHandler
+from baseplate.integration.thrift import TBaseplateProcessor, load_thrift
 
-from .activity_thrift import ActivityService, ttypes
 from .counter import ActivityCounter
+
+activity_thrift = load_thrift(__name__, "activity.thrift")
 
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ _ID_RE = re.compile("^[A-Za-z0-9_]{,50}$")
 _CACHE_TIME = 60  # seconds
 
 
-class ActivityInfo(ttypes.ActivityInfo):
+class ActivityInfo(activity_thrift.ActivityInfo):
     @classmethod
     def from_count(cls, fuzz_threshold, count):
         if count >= fuzz_threshold:
@@ -44,7 +45,7 @@ class ActivityInfo(ttypes.ActivityInfo):
         )
 
 
-class Handler(ActivityService.ContextIface):
+class Handler(object):
     def __init__(self, fuzz_threshold, counter):
         self.fuzz_threshold = fuzz_threshold
         self.counter = counter
@@ -64,7 +65,7 @@ class Handler(ActivityService.ContextIface):
 
     def count_activity_multi(self, context, context_ids):
         if not all(_ID_RE.match(context_id) for context_id in context_ids):
-            raise ActivityService.InvalidContextIDException
+            raise activity_thrift.InvalidContextIDException
 
         activity = {}
 
@@ -133,8 +134,11 @@ def make_processor(app_config):  # pragma: nocover
         fuzz_threshold=cfg.activity.fuzz_threshold,
         counter=counter,
     )
-    processor = ActivityService.ContextProcessor(handler)
-    event_handler = BaseplateProcessorEventHandler(logger, baseplate)
-    processor.setEventHandler(event_handler)
+    processor = TBaseplateProcessor(
+        logger,
+        baseplate,
+        activity_thrift.ActivityService,
+        handler,
+    )
 
     return processor

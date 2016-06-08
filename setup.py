@@ -1,7 +1,5 @@
 from setuptools import setup, find_packages
 
-from baseplate.integration.thrift.command import ThriftBuildPyCommand
-
 
 setup(
     name="reddit_service_activity",
@@ -17,7 +15,4 @@ setup(
         "coverage",
         "mock",
     ],
-    cmdclass={
-        "build_py": ThriftBuildPyCommand,
-    },
 )
