@@ -3,6 +3,8 @@ import unittest
 import mock
 import redis
 
+import baseplate.context.redis
+
 from reddit_service_activity.counter import ActivityCounter
 
 
@@ -12,14 +14,18 @@ class ActivityCounterTests(unittest.TestCase):
 
     @mock.patch("time.time")
     def test_record_activity(self, mock_time):
-        mock_time.return_value = 1200
+        mock_time.return_value = 1202
         mock_redis = mock.Mock(spec=redis.StrictRedis)
+        pipeline = mock_redis.pipeline.return_value = mock.MagicMock(
+            spec=baseplate.context.redis.MonitoredRedisPipeline)
+        pipe = pipeline.__enter__.return_value
 
         self.counter.record_activity(mock_redis, "context", "visitor")
 
         # 80 is the current time slice; 1200 / 15 = time.time() / SLICE_LENGTH
-        mock_redis.execute_command.assert_called_with(
+        pipe.execute_command.assert_called_with(
             "PFADD", "context/80", "visitor")
+        pipe.expireat.assert_called_with("context/80", 1216)
 
     @mock.patch("time.time")
     def test_count_activity(self, mock_time):
