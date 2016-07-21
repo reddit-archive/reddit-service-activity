@@ -104,8 +104,8 @@ class ActivityServiceTests(unittest.TestCase):
         self.assertEqual(result.count, 125)
         self.assertFalse(result.is_fuzzed)
 
-        # 60 is how long we cache for.
-        self.mock_pipe.setex.assert_called_with("context/cached", 60, (125, False))
+        # 30 is how long we cache for.
+        self.mock_pipe.setex.assert_called_with("context/cached", 30, (125, False))
 
     @mock.patch("reddit_service_activity.ActivityInfo", new=MockActivityInfo)
     def test_count_activity_multi_cache_miss(self):
@@ -115,6 +115,6 @@ class ActivityServiceTests(unittest.TestCase):
         self.handler.count_activity_multi(self.mock_context, ["one", "two"])
 
         self.mock_pipe.setex.assert_has_calls([
-            mock.call("one/cached", 60, (500, False)),
-            mock.call("two/cached", 60, (600, False)),
+            mock.call("one/cached", 30, (500, False)),
+            mock.call("two/cached", 30, (600, False)),
         ], any_order=True)

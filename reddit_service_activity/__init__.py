@@ -16,7 +16,7 @@ from .counter import ActivityCounter
 
 logger = logging.getLogger(__name__)
 _ID_RE = re.compile("^[A-Za-z0-9_]{,50}$")
-_CACHE_TIME = 60  # seconds
+_CACHE_TIME = 30  # seconds
 
 
 class ActivityInfo(ttypes.ActivityInfo):
