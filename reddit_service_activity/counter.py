@@ -29,9 +29,7 @@ def _current_slice():
     return int(time.time() // _SLICE_LENGTH)
 
 
-def _make_key(context_id, slice=None, offset=0):
-    if slice is None:
-        slice = _current_slice()
+def _make_key(context_id, slice, offset=0):
     slice += offset
     return _SLICE_KEY_FORMAT.format(context_id=context_id, slice=slice)
 
@@ -43,8 +41,14 @@ class ActivityCounter(object):
         self.slice_count = int(slice_count)
 
     def record_activity(self, redis, context_id, visitor_id):
-        key = _make_key(context_id)
-        redis.execute_command("PFADD", key, visitor_id)
+        current_slice = _current_slice()
+        key = _make_key(context_id, current_slice)
+        expiration = (current_slice + self.slice_count + 1) * _SLICE_LENGTH
+
+        with redis.pipeline("record") as pipe:
+            pipe.execute_command("PFADD", key, visitor_id)
+            pipe.expireat(key, expiration)
+            pipe.execute()
 
     def count_activity(self, redis, context_id):
         slice = _current_slice()
