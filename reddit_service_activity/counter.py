@@ -43,7 +43,7 @@ class ActivityCounter(object):
     def record_activity(self, redis, context_id, visitor_id):
         current_slice = _current_slice()
         key = _make_key(context_id, current_slice)
-        expiration = ((current_slice + 1) * _SLICE_LENGTH) + 1
+        expiration = (current_slice + self.slice_count + 1) * _SLICE_LENGTH
 
         with redis.pipeline("record") as pipe:
             pipe.execute_command("PFADD", key, visitor_id)

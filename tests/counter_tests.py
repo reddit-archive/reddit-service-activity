@@ -25,7 +25,10 @@ class ActivityCounterTests(unittest.TestCase):
         # 80 is the current time slice; 1200 / 15 = time.time() / SLICE_LENGTH
         pipe.execute_command.assert_called_with(
             "PFADD", "context/80", "visitor")
-        pipe.expireat.assert_called_with("context/80", 1216)
+
+        # 2115 = current slice + number of slices we need as a time
+        # i.e. 15 minutes in the future + a tiny buffer
+        pipe.expireat.assert_called_with("context/80", 2115)
 
     @mock.patch("time.time")
     def test_count_activity(self, mock_time):
