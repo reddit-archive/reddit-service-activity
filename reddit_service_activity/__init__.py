@@ -109,7 +109,10 @@ def make_processor(app_config):  # pragma: nocover
             "window": config.Timespan,
             "fuzz_threshold": config.Integer,
         },
-
+        "tracing": {
+            "endpoint": config.Optional(config.Endpoint),
+            "service_name": config.String,
+        },
         "redis": {
             "url": config.String,
             "max_connections": config.Optional(config.Integer, default=100),
@@ -126,6 +129,10 @@ def make_processor(app_config):  # pragma: nocover
     baseplate = Baseplate()
     baseplate.configure_logging()
     baseplate.configure_metrics(metrics_client)
+    baseplate.configure_tracing(
+        cfg.tracing.service_name,
+        cfg.tracing.endpoint,
+    )
     baseplate.add_to_context("redis", RedisContextFactory(redis_pool))
 
     counter = ActivityCounter(cfg.activity.window.total_seconds())
