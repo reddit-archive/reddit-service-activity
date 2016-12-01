@@ -45,6 +45,8 @@ class GatewayFunctionalTests(unittest.TestCase):
             "activity.endpoint": "/socket",
             "metrics.endpoint": "/socket",
             "metrics.namespace": "namespace",
+            "tracing.endpoint": None,
+            "tracing.service_name": "activity_gateway",
         })
 
         self.test_app = webtest.TestApp(app)
