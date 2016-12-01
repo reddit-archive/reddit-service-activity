@@ -47,10 +47,6 @@ def make_wsgi_app(app_config):
         "activity": {
             "endpoint": config.Endpoint,
         },
-        "tracing": {
-            "endpoint": config.Optional(config.Endpoint),
-            "service_name": config.String,
-        },
     })
 
     metrics_client = make_metrics_client(app_config)
@@ -60,13 +56,8 @@ def make_wsgi_app(app_config):
     baseplate = Baseplate()
     baseplate.configure_logging()
     baseplate.configure_metrics(metrics_client)
-    baseplate.configure_tracing(
-        cfg.tracing.service_name,
-        cfg.tracing.endpoint,
-    )
-
     baseplate.add_to_context("activity",
-                             ThriftContextFactory(pool, ActivityService.Client))
+        ThriftContextFactory(pool, ActivityService.Client))
 
     configurator = Configurator(settings=app_config)
 
