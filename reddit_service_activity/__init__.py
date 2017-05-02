@@ -21,11 +21,9 @@ _CACHE_TIME = 30  # seconds
 
 class ActivityInfo(ttypes.ActivityInfo):
     @classmethod
-    def from_count(cls, fuzz_threshold, count):
-        if count >= fuzz_threshold:
-            return cls(count=count, is_fuzzed=False)
-
-        decay = math.exp(float(-count) / 60)
+    def from_count(cls, count):
+        # keep a minimum jitter range of 5 for counts over 100
+        decay = math.exp(float(-min(count, 100)) / 60)
         jitter = round(5 * decay)
         return cls(count=count + random.randint(0, jitter), is_fuzzed=True)
 
@@ -45,8 +43,7 @@ class ActivityInfo(ttypes.ActivityInfo):
 
 
 class Handler(ActivityService.ContextIface):
-    def __init__(self, fuzz_threshold, counter):
-        self.fuzz_threshold = fuzz_threshold
+    def __init__(self, counter):
         self.counter = counter
 
     def is_healthy(self, context):
@@ -90,7 +87,7 @@ class Handler(ActivityService.ContextIface):
         to_cache = {}
         for context_id, count in zip(missing_ids, counts):
             if count is not None:
-                info = ActivityInfo.from_count(self.fuzz_threshold, count)
+                info = ActivityInfo.from_count(count)
                 to_cache[context_id] = info
         activity.update(to_cache)
 
@@ -107,7 +104,6 @@ def make_processor(app_config):  # pragma: nocover
     cfg = config.parse_config(app_config, {
         "activity": {
             "window": config.Timespan,
-            "fuzz_threshold": config.Integer,
         },
         "tracing": {
             "endpoint": config.Optional(config.Endpoint),
@@ -136,10 +132,7 @@ def make_processor(app_config):  # pragma: nocover
     baseplate.add_to_context("redis", RedisContextFactory(redis_pool))
 
     counter = ActivityCounter(cfg.activity.window.total_seconds())
-    handler = Handler(
-        fuzz_threshold=cfg.activity.fuzz_threshold,
-        counter=counter,
-    )
+    handler = Handler(counter=counter)
     processor = ActivityService.ContextProcessor(handler)
     event_handler = BaseplateProcessorEventHandler(logger, baseplate)
     processor.setEventHandler(event_handler)
