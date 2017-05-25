@@ -6,7 +6,12 @@ import re
 
 import redis
 
-from baseplate import Baseplate, make_metrics_client, config
+from baseplate import (
+    Baseplate,
+    config,
+    metrics_client_from_config,
+    tracing_client_from_config,
+)
 from baseplate.context.redis import RedisContextFactory
 from baseplate.integration.thrift import BaseplateProcessorEventHandler
 
@@ -115,7 +120,8 @@ def make_processor(app_config):  # pragma: nocover
         },
     })
 
-    metrics_client = make_metrics_client(app_config)
+    metrics_client = metrics_client_from_config(app_config)
+    tracing_client = tracing_client_from_config(app_config)
     redis_pool = redis.BlockingConnectionPool.from_url(
         cfg.redis.url,
         max_connections=cfg.redis.max_connections,
@@ -125,10 +131,7 @@ def make_processor(app_config):  # pragma: nocover
     baseplate = Baseplate()
     baseplate.configure_logging()
     baseplate.configure_metrics(metrics_client)
-    baseplate.configure_tracing(
-        cfg.tracing.service_name,
-        cfg.tracing.endpoint,
-    )
+    baseplate.configure_tracing(tracing_client)
     baseplate.add_to_context("redis", RedisContextFactory(redis_pool))
 
     counter = ActivityCounter(cfg.activity.window.total_seconds())
