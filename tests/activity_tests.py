@@ -121,3 +121,7 @@ class ActivityServiceTests(unittest.TestCase):
             mock.call("one/cached", 30, (500, True)),
             mock.call("two/cached", 30, (600, True)),
         ], any_order=True)
+
+    def test_count_activity_multi_empty_list(self):
+        result = self.handler.count_activity_multi(self.mock_context, [])
+        self.assertEqual(result, {})

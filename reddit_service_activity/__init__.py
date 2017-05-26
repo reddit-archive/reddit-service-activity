@@ -66,6 +66,9 @@ class Handler(ActivityService.ContextIface):
         return results[context_id]
 
     def count_activity_multi(self, context, context_ids):
+        if not context_ids:
+            return {}
+
         if not all(_ID_RE.match(context_id) for context_id in context_ids):
             raise ActivityService.InvalidContextIDException
 
